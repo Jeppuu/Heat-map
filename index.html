@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Global Heat Map</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+    <div id="chart-container"></div>
+    <script>
+      // Fetch data from API
+      d3.json(
+        "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json"
+      )
+        .then((data) => {
+          // Width and height of the chart
+          const fontSize = 16;
+          const margin = {
+            left: 9 * fontSize,
+            right: 9 * fontSize,
+            top: 1 * fontSize,
+            bottom: 8 * fontSize,
+          };
+          // const margin = { top: 20, right: 40, bottom: 50, left: 70 };
+          const width = 5 * Math.ceil(data.monthlyVariance.length / 12);
+          const height = 500 - margin.top - margin.bottom;
+
+          // Create title
+          const title = d3
+            .select("#chart-container")
+            .append("h1")
+            .attr("id", "title")
+            .text("Monthly Global Land-Surface Temperature")
+            .append("span")
+            .attr("id", "description")
+            .html(
+              "base temperature: " +
+                data.baseTemperature +
+                "&#8451; in " +
+                data.monthlyVariance[0].year +
+                " - " +
+                data.monthlyVariance[data.monthlyVariance.length - 1].year
+            );
+
+          // Create tooltip
+          const tooltip = d3
+            .select("#chart-container")
+            .append("div")
+            .attr("id", "tooltip")
+            .style("position", "absolute")
+            .style("background-color", "midnightBlue")
+            .style("color", "white")
+            .style("border", "solid")
+            .style("border-width", "1px")
+            .style("border-radius", "5px")
+            .style("padding", "10px")
+            .style("opacity", 0);
+
+          // Create SVG for the chart
+          const svg = d3
+            .select("#chart-container")
+            .append("svg")
+            .attr("id", "chart")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr(
+              "transform",
+              "translate(" + margin.left + "," + margin.top + ")"
+            );
+
+          // Add label for y-axis
+          svg
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("x", -200)
+            .attr("y", -50)
+            .attr("class", "label")
+            .text("Months");
+
+          // Add label for x-axis
+          svg
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", height + 50)
+            .attr("class", "label")
+            .text("Years");
+
+          // Create x scale
+          const xScale = d3
+            .scaleBand()
+            .domain(data.monthlyVariance.map((d) => d.year))
+            .range([0, width]);
+
+          // Create x-axis
+          const xAxis = d3
+            .axisBottom()
+            .scale(xScale)
+            // Display ticks every ten years
+            .tickValues(xScale.domain().filter((year) => year % 10 === 0));
+
+          // Append x-axis to the chart
+          svg
+            .append("g")
+            .attr("id", "x-axis")
+            // Turn the axis
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+          // Create y-scale
+          const yScale = d3
+            .scaleBand()
+            .domain(data.monthlyVariance.map((d) => d.month))
+            .range([0, height]);
+
+          // Create y-axis
+          const yAxis = d3.axisLeft(yScale).tickFormat((d) => {
+            switch (d) {
+              case 1:
+                return "January";
+              case 2:
+                return "February";
+              case 3:
+                return "March";
+              case 4:
+                return "April";
+              case 5:
+                return "May";
+              case 6:
+                return "June";
+              case 7:
+                return "July";
+              case 8:
+                return "August";
+              case 9:
+                return "September";
+              case 10:
+                return "October";
+              case 11:
+                return "November";
+              case 12:
+                return "December";
+              default:
+                return "";
+            }
+          });
+
+          // Append y-axis to the chart
+          svg
+            .append("g")
+            .call(yAxis)
+            .attr("id", "y-axis")
+            .attr("transform", "translate(0, 0)"); // Ensure the y-axis is translated properly
+
+          console.log(data.monthlyVariance[0].month);
+
+          // legend
+          // Followed example from https://bl.ocks.org/mbostock/4573883
+
+          // Define the colors for the legend
+          const legendColors = [
+            "#d73027",
+            "#f46d43",
+            "#fdae61",
+            "#fee090",
+            "#ffffbf",
+            "#e0f3f8",
+            "#abd9e9",
+            "#74add1",
+            "#4575b4",
+          ].reverse(); // Reverse the colors to match the order of the legend
+
+          // Define the width and height for the legend
+          const legendWidth = 400;
+          const legendHeight = 300 / legendColors.length;
+
+          // Determine the minimum and maximum temperature values
+          let variance = data.monthlyVariance.map((val) => val.variance);
+          const minTemp = data.baseTemperature + Math.min.apply(null, variance);
+          const maxTemp = data.baseTemperature + Math.max.apply(null, variance);
+
+          // Define the threshold scale for the legend
+          const legendThreshold = d3
+            .scaleThreshold()
+            .domain(
+              (function (min, max, count) {
+                let array = [];
+                const step = (max - min) / count;
+                const base = min;
+                for (let i = 1; i < count; i++) {
+                  array.push(base + i * step);
+                }
+                return array;
+              })(minTemp, maxTemp, legendColors.length)
+            )
+            .range(legendColors);
+
+          // Define the x scale for the legend
+          const legendX = d3
+            .scaleLinear()
+            .domain([minTemp, maxTemp])
+            .range([0, legendWidth]);
+
+          // Define the x-axis for the legend
+          const legendXAxis = d3
+            .axisBottom()
+            .scale(legendX)
+            .tickSize(10, 0)
+            .tickValues(legendThreshold.domain()) // Set tick values based on threshold domain
+            .tickFormat(d3.format(".1f")); // Format tick labels to display one decimal place
+
+          // Append the legend to the SVG
+          const legend = svg
+            .append("g")
+            .classed("legend", true)
+            .attr("id", "legend")
+            // Position the legend below the chart
+            .attr(
+              "transform",
+              "translate(" +
+                margin.left / 2 +
+                "," +
+                (margin.top + height + margin.bottom - 3 * legendHeight) +
+                ")"
+            );
+
+          // Append colored rectangles to represent the legend
+          legend
+            .append("g")
+            .selectAll("rect")
+            .data(
+              legendThreshold.range().map(function (color) {
+                const d = legendThreshold.invertExtent(color);
+                if (d[0] === null) {
+                  d[0] = legendX.domain()[0];
+                }
+                if (d[1] === null) {
+                  d[1] = legendX.domain()[1];
+                }
+                return d;
+              })
+            )
+            .enter()
+            .append("rect")
+            .style("fill", function (d) {
+              return legendThreshold(d[0]);
+            })
+            .attr("x", (d) => legendX(d[0]))
+            .attr("y", 0)
+            .attr("width", (d) =>
+              d[0] && d[1] ? legendX(d[1]) - legendX(d[0]) : legendX(null)
+            )
+            .attr("height", legendHeight);
+
+          // Append x-axis to the legend
+          legend
+            .append("g")
+            .attr("transform", "translate(" + 0 + "," + legendHeight + ")")
+            .call(legendXAxis);
+
+          // Create the heat map
+          svg
+            .append("g")
+            .classed("map", true)
+            .selectAll("rect")
+            .data(data.monthlyVariance)
+            .enter()
+            .append("rect")
+            .attr("class", "cell")
+            .attr("data-month", (d) => d.month - 1)
+            .attr("data-year", (d) => d.year)
+            .attr("data-temp", (d) => data.baseTemperature + d.variance)
+            .attr("x", (d) => xScale(d.year))
+            .attr("y", (d) => yScale(d.month))
+            .attr("width", (d) => xScale.bandwidth(d.year))
+            .attr("height", (d) => yScale.bandwidth(d.month))
+            .attr(
+              "fill",
+              (d) => legendThreshold(data.baseTemperature + d.variance) // Set the fill color based on the temperature variance
+            )
+            .on("mouseover", function (event, d) {
+              let date = new Date(d.year, d.month);
+              const str =
+                // Format the date to display month and year
+                "<span class='date'>" +
+                d3.utcFormat("%B %Y")(date) +
+                "</span>" +
+                "<br />" +
+                "<span class='temperature'>" +
+                // Format the temperature to display one decimal point
+                d3.format(".1f")(data.baseTemperature + d.variance) +
+                "&#8451;" + // Celsius symbol
+                "</span>" +
+                "<br />" +
+                "<span class='variance'>" +
+                d3.format("+.1f")(d.variance) +
+                "&#8451;" + // Celsius symbol
+                "</span>";
+              tooltip
+                .attr("data-year", d.year)
+                .style("opacity", 0.9)
+                .html(str)
+                .style("left", event.pageX + 5 + "px")
+                .style("top", event.pageY - 80 + "px");
+            })
+            .on("mouseout", () => tooltip.style("opacity", 0));
+
+          // End of json data
+        })
+        .catch((error) => {
+          console.error("Error fetching data:", error);
+        });
+    </script>
+    <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  </body>
+</html>

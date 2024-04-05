@@ -1,0 +1,35 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  font-size: 16px;
+  color: #040404;
+}
+
+h1 {
+  color: midnightBlue;
+  font-size: 24px;
+  text-align: center;
+  margin: 0.8em auto;
+  display: block;
+}
+#description {
+  display: block;
+  margin: 10px;
+  font-size: 16px;
+  font-weight: 400;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.label {
+  font-size: 0.8em;
+}
+
+.cell:hover {
+  stroke: midnightBlue;
+  stroke-width: 2px;
+}
